@@ -10,3 +10,6 @@
 - Lab03: Simple Pipeline CPU
 - Lab04: Advance Pipeline CPU
 - Lab05: Implement Cache Manager
+
+## Course Website
+https://nycu-caslab.github.io/CO2024/index.html
