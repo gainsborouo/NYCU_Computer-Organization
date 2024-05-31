@@ -1,4 +1,4 @@
-module SingleCycleCPU (
+module PipelineCPU (
     input clk,
     input start,
     output signed [31:0] r [0:31]

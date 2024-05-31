@@ -8,15 +8,15 @@
 
 using namespace std;
 
-#include "VSingleCycleCPU.h"
+#include "VPipelineCPU.h"
 
 #define max_cycles 100
 
 VerilatedContext *contextp = new VerilatedContext;
 VerilatedVcdC *m_trace = new VerilatedVcdC;
-VSingleCycleCPU *top = new VSingleCycleCPU{contextp};
+VPipelineCPU *top = new VPipelineCPU{contextp};
 
-void SingleCycleCPUTest(int cycle){
+void PipelineCPUTest(int cycle){
     // reset
     top->clk = 0;
     top->start = 1;
@@ -60,7 +60,7 @@ int main(int argc, char **argv){
     m_trace->open("waveform.vcd");
 
 
-    SingleCycleCPUTest(max_cycles);
+    PipelineCPUTest(max_cycles);
 
     m_trace->dump(contextp->time());
     top->final();
