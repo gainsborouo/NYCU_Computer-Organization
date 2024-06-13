@@ -3,7 +3,7 @@
 
 // Replacement Policy
 // Cache: LRU
-// Victim Buffer: FIFO
+// Victim Buffer: FIFO (not used)
 
 CacheManager::CacheManager(Memory *memory, Cache *cache){
     // TODO: implement your constructor here
