@@ -13,10 +13,12 @@ CacheManager::CacheManager(Memory *memory, Cache *cache){
     this->memory = memory;
     this->cache = cache;
     size = cache->get_size();
+    // cache->set_block_size(4);
+    // tag_bits = 32 - 2;
     cache->set_block_size(4);
     tag_bits = 32 - 2;
     capacity = cache->get_len();
-    victim_buffer_capacity = (int)pow(2, 15);
+    // victim_buffer_capacity = (int)pow(2, 9);
 };
 
 CacheManager::~CacheManager(){
@@ -29,8 +31,11 @@ CacheManager::~CacheManager(){
 };
 
 std::pair<unsigned, unsigned> CacheManager::directed_map(unsigned int addr){
-    // This function is not used for fully associative cache
-    return {0, 0};
+    // map addr by directed-map method
+    unsigned int index_bit = int(log2(cache->get_len()));
+    unsigned int index = (addr >> 2) % cache->get_len(); 
+    unsigned int tag = addr >> index_bit >> 2;
+    return {index, tag};
 }
 
 void CacheManager::updateLRU(unsigned int addr){
@@ -40,7 +45,7 @@ void CacheManager::updateLRU(unsigned int addr){
     else if(lru_list.size() >= capacity){
         unsigned least_recent = lru_list.back();
         lru_list.pop_back();
-        addToVictimBuffer(least_recent, *cache_map[least_recent]);
+        // addToVictimBuffer(least_recent, *cache_map[least_recent]);
         delete cache_map[least_recent];
         cache_map.erase(least_recent);
         lru_map.erase(least_recent);
@@ -83,12 +88,12 @@ unsigned int* CacheManager::find(unsigned int addr){
         updateLRU(addr);
         return cache_map[addr];
     }
-    unsigned int* value_ptr = findInVictimBuffer(addr);
-    if(value_ptr != nullptr){
-        addToCache(addr, *value_ptr);
-        delete value_ptr;
-        return cache_map[addr];
-    }
+    // unsigned int* value_ptr = findInVictimBuffer(addr);
+    // if(value_ptr != nullptr){
+    //     addToCache(addr, *value_ptr);
+    //     delete value_ptr;
+    //     return cache_map[addr];
+    // }
     else return nullptr;
 }
 
@@ -98,11 +103,11 @@ unsigned int CacheManager::read(unsigned int addr){
     if(value_ptr != nullptr){
         return *value_ptr;
     }
-    value_ptr = findInVictimBuffer(addr);
-    if(value_ptr != nullptr){
-        addToCache(addr, *value_ptr);
-        return *value_ptr;
-    }
+    // value_ptr = findInVictimBuffer(addr);
+    // if(value_ptr != nullptr){
+    //     addToCache(addr, *value_ptr);
+    //     return *value_ptr;
+    // }
     unsigned int value = memory->read(addr);
     addToCache(addr, value);
     return value;
