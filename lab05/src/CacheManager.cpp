@@ -1,6 +1,7 @@
 #include "CacheManager.h"
 #include <math.h>
 
+// Fully Associative Cache
 // Replacement Policy
 // Cache: LRU
 // Victim Buffer: FIFO (not used)
@@ -128,4 +129,3 @@ void CacheManager::write(unsigned int addr, unsigned value){
     }
     memory->write(addr, value);
 };
-
