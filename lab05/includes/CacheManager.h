@@ -24,18 +24,16 @@ private:
     unsigned int size;       // bytes
     unsigned int tag_bits;
     unsigned int capacity;
-    unsigned int victim_buffer_capacity;
 
     std::pair<unsigned, unsigned> directed_map(unsigned int addr);
-    std::unordered_map<unsigned int, unsigned int*> cache_map;
-    std::list<unsigned int> lru_list;
-    std::unordered_map<unsigned int, std::list<unsigned int>::iterator> lru_map;
 
-    std::unordered_map<unsigned int, unsigned int*> victim_buffer_map;
-    std::list<unsigned int> victim_buffer_list;
-    unsigned int* findInVictimBuffer(unsigned int addr);
-    void addToCache(unsigned int addr, unsigned int value);
-    void addToVictimBuffer(unsigned int addr, unsigned int value);
+    std::vector<bool> valid_bits;
+    void updateLRU(unsigned int addr);
+    int findCacheIndex(unsigned int addr);
+
+    std::list<unsigned int> lru_list;
+    std::unordered_map<unsigned int, std::list<unsigned int>::iterator> lru_map; 
+
 
 public:
 
@@ -44,5 +42,4 @@ public:
     unsigned int* find(unsigned int addr);
     unsigned int  read(unsigned int addr);
     void write(unsigned int addr, unsigned value);
-    void updateLRU(unsigned int addr);
 };

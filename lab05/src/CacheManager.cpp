@@ -1,10 +1,10 @@
 #include "CacheManager.h"
 #include <math.h>
+#include <iostream>
 
 // Fully Associative Cache
 // Replacement Policy
 // Cache: LRU
-// Victim Buffer: FIFO (not used)
 
 CacheManager::CacheManager(Memory *memory, Cache *cache){
     // TODO: implement your constructor here
@@ -17,83 +17,65 @@ CacheManager::CacheManager(Memory *memory, Cache *cache){
     cache->set_block_size(4);
     tag_bits = 32 - 2;
     capacity = cache->get_len();
-    // victim_buffer_capacity = (int)pow(2, 9);
+    valid_bits.resize(capacity, false);
 };
 
 CacheManager::~CacheManager(){
-    for (auto& entry : cache_map){
-        delete entry.second;
-    }
-    for (auto& entry : victim_buffer_map){
-        delete entry.second;
-    }
+
 };
 
-std::pair<unsigned, unsigned> CacheManager::directed_map(unsigned int addr){
-    // map addr by directed-map method
-    unsigned int index_bit = int(log2(cache->get_len()));
-    unsigned int index = (addr >> 2) % cache->get_len(); 
-    unsigned int tag = addr >> index_bit >> 2;
-    return {index, tag};
-}
+// std::pair<unsigned, unsigned> CacheManager::directed_map(unsigned int addr){
+//     // map addr by directed-map method
+//     unsigned int index_bit = int(log2(cache->get_len()));
+//     unsigned int index = (addr >> 2) % cache->get_len(); 
+//     unsigned int tag = addr >> index_bit >> 2;
+//     return {index, tag};
+// }
 
 void CacheManager::updateLRU(unsigned int addr){
-    if(lru_map.find(addr) != lru_map.end()){
-        lru_list.erase(lru_map[addr]);
+    bool found = false;
+    for(auto it = lru_list.begin(); it != lru_list.end(); it++){
+        if(*it == addr){
+            if(it != lru_list.begin()){ 
+                lru_list.push_front(*it);  
+                lru_list.erase(it);
+            }
+            found = true;
+            break;
+        }
     }
-    else if(lru_list.size() >= capacity){
-        unsigned least_recent = lru_list.back();
-        lru_list.pop_back();
-        // addToVictimBuffer(least_recent, *cache_map[least_recent]);
-        delete cache_map[least_recent];
-        cache_map.erase(least_recent);
-        lru_map.erase(least_recent);
+
+    if(!found){
+        if (lru_list.size() >= capacity) {
+            unsigned int lruTag = lru_list.back();
+            lru_list.pop_back();
+            lru_map.erase(lruTag);
+        }
+        lru_list.push_front(addr);
     }
-    lru_list.push_front(addr);
     lru_map[addr] = lru_list.begin();
 }
 
-unsigned int* CacheManager::findInVictimBuffer(unsigned int addr){
-    if(victim_buffer_map.find(addr) != victim_buffer_map.end()){
-        victim_buffer_list.remove(addr);
-        unsigned int* value_ptr = victim_buffer_map[addr];
-        victim_buffer_map.erase(addr);
-        return value_ptr;
-    }
-    return nullptr;
-}
 
-void CacheManager::addToCache(unsigned int addr, unsigned int value){
-    updateLRU(addr);
-    cache_map[addr] = new unsigned int(value);
-}
-
-void CacheManager::addToVictimBuffer(unsigned int addr, unsigned int value){
-    if (victim_buffer_list.size() >= victim_buffer_capacity) {
-        unsigned int oldest_addr = victim_buffer_list.back();
-        victim_buffer_list.pop_back();
-        delete victim_buffer_map[oldest_addr];
-        victim_buffer_map.erase(oldest_addr);
+int CacheManager::findCacheIndex(unsigned int addr) {
+    for(unsigned int i = 0; i < capacity; i++){
+        if(valid_bits[i] && (*cache)[i].tag == addr){
+            return i;
+        }
     }
-    victim_buffer_list.push_front(addr);
-    victim_buffer_map[addr] = new unsigned int(value);
+    return -1;
 }
 
 unsigned int* CacheManager::find(unsigned int addr){
     // TODO:: implement function determined addr is in cache or not
     // if addr is in cache, return target pointer, otherwise return nullptr.
     // you shouldn't access memory in this function.
-    if(cache_map.find(addr) != cache_map.end()){
-        updateLRU(addr);
-        return cache_map[addr];
+    int index = findCacheIndex(addr);
+    if(index != -1){
+        updateLRU((*cache)[index].tag);
+        return &((*cache)[index][0]);
     }
-    // unsigned int* value_ptr = findInVictimBuffer(addr);
-    // if(value_ptr != nullptr){
-    //     addToCache(addr, *value_ptr);
-    //     delete value_ptr;
-    //     return cache_map[addr];
-    // }
-    else return nullptr;
+    return nullptr;
 }
 
 unsigned int CacheManager::read(unsigned int addr){
@@ -102,14 +84,31 @@ unsigned int CacheManager::read(unsigned int addr){
     if(value_ptr != nullptr){
         return *value_ptr;
     }
-    // value_ptr = findInVictimBuffer(addr);
-    // if(value_ptr != nullptr){
-    //     addToCache(addr, *value_ptr);
-    //     return *value_ptr;
-    // }
-    unsigned int value = memory->read(addr);
-    addToCache(addr, value);
-    return value;
+    else{
+        unsigned int value = memory->read(addr);
+        for(unsigned int i = 0; i < capacity; i++){
+            if(!valid_bits[i]){
+                (*cache)[i].tag = addr;
+                (*cache)[i][0] = value;
+                valid_bits[i] = true;
+                updateLRU(addr);
+                return value;
+            }
+        }
+
+        unsigned int least_recent = lru_list.back();
+        lru_list.pop_back();
+        for(unsigned int i = 0; i < capacity; i++){
+            if((*cache)[i].tag == least_recent){
+                (*cache)[i].tag = addr;
+                (*cache)[i][0] = value;
+                valid_bits[i] = true;
+                updateLRU(addr);
+                return value;
+            }
+        }
+    }
+    return 0;
 }
 
 void CacheManager::write(unsigned int addr, unsigned value){
@@ -119,12 +118,30 @@ void CacheManager::write(unsigned int addr, unsigned value){
         *value_ptr = value;
     }
     else{
-        value_ptr = findInVictimBuffer(addr);
-        if(value_ptr != nullptr){
-            addToCache(addr, *value_ptr);
-        } 
-        else{
-            addToCache(addr, value);
+        bool written = false;
+        for(unsigned int i = 0; i < capacity; i++){
+            if(!valid_bits[i]){
+                (*cache)[i].tag = addr;
+                (*cache)[i][0] = value;
+                valid_bits[i] = true;
+                updateLRU(addr);
+                written = true;
+                break;
+            }
+        }
+
+        if(!written){
+            unsigned int least_recent = lru_list.back();
+            lru_list.pop_back();
+            for(unsigned int i = 0; i < capacity; i++){
+                if ((*cache)[i].tag == least_recent){
+                    (*cache)[i].tag = addr;
+                    (*cache)[i][0] = value;
+                    valid_bits[i] = true;
+                    updateLRU(addr);
+                    break;
+                }
+            }
         }
     }
     memory->write(addr, value);
