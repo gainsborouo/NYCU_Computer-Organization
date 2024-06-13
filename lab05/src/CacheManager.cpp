@@ -13,8 +13,6 @@ CacheManager::CacheManager(Memory *memory, Cache *cache){
     this->memory = memory;
     this->cache = cache;
     size = cache->get_size();
-    // cache->set_block_size(4);
-    // tag_bits = 32 - 2;
     cache->set_block_size(4);
     tag_bits = 32 - 2;
     capacity = cache->get_len();
